@@ -1,0 +1,13 @@
+/target
+/.rea
+/.demo
+.lrtassist/
+*.mp4
+*.mov
+
+components/
+.tmp_demo/
+.tmp_*
+NVIDIA Corporation/
+/dist/
+/.cargo/

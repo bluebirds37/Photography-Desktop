@@ -2,38 +2,32 @@
 
 一套独立的延时摄影后期工具，使用 **Rust + GPUI** 构建。它把序列分析、关键帧调色、曝光过渡、视觉去闪烁、XMP 边车导出和视频渲染整合进一个桌面程序，无需外部编辑器或 Java 运行时。
 
-![主界面](docs/screenshots/app-main.png)
+[English](README.en.md) · **简体中文**
 
-
+![主界面](docs/assets/screenshots/overview.png)
 
 ## 功能
 
-- **序列导入**：JPEG / PNG / TIFF / DNG / CR2 / CR3 / NEF / ARW / RAF / ORF / RW2 等；自动解析 EXIF、按文件名自然排序或按拍摄时间排序。
+- **序列导入**：JPEG / PNG / TIFF / DNG / CR2 / CR3 / NEF / ARW / RAF / ORF / RW2 / SRW / PEF；自动解析 EXIF、按文件名自然排序或按拍摄时间排序。
 - **RAW 支持**：内嵌 JPEG 预览用于快速缩略图和视觉分析；支持的 RAW 由纯 Rust `rawler` 去马赛克，失败时自动回退到内嵌预览。
 - **关键帧工作流**：标记/取消关键帧、上一/下一关键帧、首尾关键帧、自动关键帧。
-- **Holy Grail 向导**：根据相机曝光/亮度曲线补偿日转夜拍摄中的曝光跳变；提供偏移、拉伸、旋转、初始平滑四个参数，以及 351 次评估的自动优化。
-- **自动过渡**：在关键帧之间对曝光、色温、色调、对比度、高光、阴影、黑白场、饱和度等全部列做线性或平滑插值。
+- **Holy Grail 向导**：根据相机曝光/亮度曲线补偿日转夜拍摄中的曝光跳变；提供偏移、拉伸、旋转、初始平滑四个参数，以及 352 次评估的自动优化。
+- **自动过渡**：在关键帧之间对曝光、色温、色调、对比度、高光、阴影、黑白场、饱和度、自然饱和度全部 10 列做线性或平滑插值。
 - **视觉去闪烁**：按当前调整渲染缩略图 → 计算亮度曲线 → LOESS 平滑 → 写回 EV 修正；支持精度、平滑度、多遍和恒定模式。
 - **XMP 边车**：为每张图写 Adobe Camera Raw 兼容的 `crs:*` 字段，并保留已有 XMP 中的无关元数据；同时写入本程序的工作流标记，便于再次载入时恢复状态。
 - **渲染**：并行渲染帧，支持 1080p / 4K / 竖屏、24/25/30/60 fps、H.264 / H.265 / ProRes；高级导出支持 CRF 质量优先或目标码率（VBR）、快速/均衡/高质量编码预设、运动模糊、锐化与保留输出帧。
-- **内置 FFmpeg 组件**：首次运行自动导入系统 FFmpeg，若不存在则从镜像快速安装；设置页支持下载最新版、从压缩包安装、导入系统、切换版本、卸载版本。
+- **内置 FFmpeg 组件**：首次运行自动导入系统 FFmpeg；Windows 上还可从镜像快速安装。设置页支持下载最新版、从压缩包安装、导入系统、切换版本、卸载版本。
 - **暗色窗口**：自绘标题栏与原生窗口控制（最小化/最大化/关闭），不再出现浅色系统标题栏。
 - **项目管理**：在序列目录下生成 `.lrtassist/project.json`，自动保存调整、关键帧和设置；缩略图缓存位于 `.lrtassist/thumbs`。
 - **无界面 CLI**：`tlcore` 可用于批处理、自动化测试和无头渲染。
 
 ## 快速开始
 
-已构建版本位于 `dist/`：
-
-- `dist/timelapse_assistant.exe`：桌面程序
-- `dist/tlcore.exe`：批处理 CLI
-- `dist/components/`：首次运行自动安装的 FFmpeg 组件
-
 要求：
 
-- Windows 10/11
+- macOS 11+ 或 Windows 10/11（64 位）
 - Rust stable（从源码构建时）
-- FFmpeg 无需预装：首次运行自动导入系统版本或从镜像下载
+- FFmpeg 无需预装：首次运行自动导入系统版本；Windows 上还可自动安装
 
 从源码构建：
 
@@ -44,20 +38,29 @@ cargo build --release
 打开界面，可直接传入序列目录：
 
 ```bash
-target/release/timelapse_assistant.exe "D:/photos/my-timelapse"
+# macOS（应用包）
+open "dist/Timelapse Assistant.app" --args "/path/to/my-timelapse"
+
+# macOS（终端）
+target/release/timelapse_assistant "/path/to/my-timelapse"
+
+# Windows
+target\release\timelapse_assistant.exe "D:\photos\my-timelapse"
 ```
+
+启动参数：`[文件夹] [--tab adjust|tools|render|settings] [--frame N]`。
 
 生成测试序列并跑完整流程：
 
 ```bash
-target/release/tlcore.exe demo ./.demo
-target/release/tlcore.exe analyze ./.demo
-target/release/tlcore.exe hg ./.demo
-target/release/tlcore.exe keyframes ./.demo
-target/release/tlcore.exe transition ./.demo
-target/release/tlcore.exe deflicker ./.demo
-target/release/tlcore.exe xmp ./.demo
-target/release/tlcore.exe render ./.demo ./out.mp4
+tlcore demo ./.demo
+tlcore analyze ./.demo
+tlcore hg ./.demo
+tlcore keyframes ./.demo
+tlcore transition ./.demo
+tlcore deflicker ./.demo
+tlcore xmp ./.demo
+tlcore render ./.demo ./out.mp4
 ```
 
 ## 推荐工作流
@@ -73,28 +76,38 @@ target/release/tlcore.exe render ./.demo ./out.mp4
 
 ## 界面
 
-- **顶部**：打开文件夹、保存、重新扫描、工作流状态、FFmpeg 状态、渲染、设置。
+- **顶部**：打开文件夹、保存、重新扫描、流程状态、FFmpeg 状态、渲染、设置。
 - **左侧**：序列列表，显示缩略图、曝光修正、亮度与关键帧标记。
 - **中央**：画面预览、亮度/曝光曲线、关键帧标记、播放与逐帧导航。
-- **右侧**：调整、工具、渲染三个工作页；设置通过顶部按钮进入。
+- **右侧**：调整、工具、渲染三个工作页；设置通过右上角齿轮打开模态弹窗。
 - **设置**：FFmpeg 组件的安装、导入、切换与卸载。
+
+## 文档
+
+完整、逐功能配图的双语文档：
+
+- [中文文档](docs/zh/README.md)
+- [English documentation](docs/en/README.md)
+- [文档索引](docs/README.md)
+
+包含安装、界面、序列与关键帧、单帧调整、工具、渲染、设置与 FFmpeg、命令行与文件格式、架构与排障 10 篇，每篇都配有界面截图。旧版文档已归档到 [`docs/archive/`](docs/archive/README.md)。
 
 ## FFmpeg 组件
 
 组件目录默认为可执行文件旁的 `components/ffmpeg/`，安装目录只读时回退到：
 
 ```text
-%LOCALAPPDATA%\TimelapseAssistant\components
+%LOCALAPPDATA%\TimelapseAssistant\components      # Windows
+<临时目录>/TimelapseAssistant/components           # macOS / Linux（LOCALAPPDATA 未设置时）
 ```
 
-每个版本位于 `components/ffmpeg/<version>/`，包含 `ffmpeg.exe`、`ffprobe.exe` 及同目录 DLL。`versions.json` 记录当前选择、所有已安装版本和首次自动安装状态。
+每个版本位于 `components/ffmpeg/<version>/`，包含 `ffmpeg`（Windows 为 `ffmpeg.exe`）、`ffprobe` 及同目录 DLL。`versions.json` 记录当前选择、所有已安装版本和首次自动安装状态。
 
 首次运行：
 
-1. 找到系统 FFmpeg（`PATH` 与常见安装目录）时，复制到组件目录并选中；
-2. 未找到时，从镜像快速安装 FFmpeg 4.1.0；
-3. 镜像失败时回退官方 essentials 最新版；
-4. 设置页可手动下载最新版、从 ZIP/TGZ 安装、导入系统版本、切换、卸载或回退系统 FFmpeg。
+1. 找到系统 FFmpeg（`PATH` 与常见安装目录）时，导入到组件目录并选中；
+2. 未找到时：Windows 从镜像快速安装 FFmpeg 4.1.0，失败后回退官方 essentials 最新版；macOS 不自动下载，提示在设置中导入；
+3. 设置页可手动下载最新版、从 ZIP/TGZ 安装、导入系统版本、切换、卸载或回退系统 FFmpeg。
 
 ## CLI
 
@@ -104,7 +117,7 @@ tlcore analyze <folder>      导入、EXIF、缩略图、亮度分析
 tlcore hg <folder>           应用 Holy Grail（使用已保存参数）
 tlcore hgopt <folder>        自动搜索 stretch/rotate
 tlcore keyframes <folder>    标记首/中/尾关键帧（测试用）
-tlcore transition <folder>   关键帧自动过渡
+tlcore transition <folder>   关键帧过渡（曝光/色温/色调）
 tlcore deflicker <folder>    视觉预览去闪烁
 tlcore report <folder>       输出闪烁指数与曝光范围
 tlcore xmp <folder>          写 XMP 边车
@@ -117,6 +130,8 @@ tlcore ffmpeg-use <version>  切换内置版本
 tlcore ffmpeg-system         回退到系统 FFmpeg
 tlcore ffmpeg-uninstall <v>  卸载内置版本
 ```
+
+> CLI 的 `transition` 目前只插值曝光、色温、色调；界面中的“应用自动过渡”会处理全部 10 列。完整过渡请使用界面，详见 [命令行文档](docs/zh/08-cli-and-files.md)。
 
 ## 项目结构
 
@@ -138,11 +153,13 @@ src/
   ui/
     app.rs                 GPUI 主界面
     graph.rs               亮度/曝光曲线
+    icons.rs               内嵌图标
   bin/tlcore.rs            无界面 CLI
 docs/
-  用户手册.md
-  算法设计.md
-  开发指南.md
+  README.md                文档索引
+  zh/  en/                 中英文文档
+  assets/screenshots/      文档配图
+  archive/                 旧版文档
 ```
 
 ## 数据目录
@@ -166,13 +183,7 @@ docs/
 - RAW 解码依赖 `rawler` 的相机支持；不支持的特殊压缩会回退到内嵌 JPEG 预览。
 - 暂未实现外部目录同步、HDR 合成、局部蒙版、镜头校正、稳定与高级运动模糊。
 - 目标码率为 VBR 平均值，简单画面可能低于目标值；需要严格固定码率时可改用 CRF 或后续扩展两遍编码。
-- 内置组件优先使用系统 FFmpeg 导入；无系统版本时默认从镜像安装 FFmpeg 4.1.0，也可在设置中下载最新版。
-
-## 文档
-
-- [用户手册](docs/用户手册.md)：界面、工作流、渲染与常见问题。
-- [算法设计](docs/算法设计.md)：LOESS、去闪烁、曝光过渡、渲染管线。
-- [开发指南](docs/开发指南.md)：模块结构、数据流、构建、测试与发布。
+- 内置组件优先使用系统 FFmpeg 导入；无系统版本时 Windows 默认从镜像安装 FFmpeg 4.1.0，也可在设置中下载最新版。
 
 ## 第三方依赖
 

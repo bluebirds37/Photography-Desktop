@@ -23,6 +23,11 @@ pub const LATEST_URL: &str = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-
 pub const MIRROR_URL: &str =
     "https://registry.npmmirror.com/@ffmpeg-installer/win32-x64/-/win32-x64-4.1.0.tgz";
 
+/// Name of the FFmpeg executable on this platform.
+pub const EXE_NAME: &str = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+/// Both bundled download sources ship Windows builds only.
+pub const DOWNLOADABLE: bool = cfg!(windows);
+
 #[derive(Clone, Debug)]
 pub enum InstallEvent {
     Stage(String),
@@ -120,7 +125,7 @@ pub fn managed_versions() -> Vec<ManagedVersion> {
 }
 
 fn version_exe(v: &ManagedVersion) -> PathBuf {
-    ffmpeg_root().join(&v.dir).join("ffmpeg.exe")
+    ffmpeg_root().join(&v.dir).join(EXE_NAME)
 }
 
 pub fn selected_version() -> Option<ManagedVersion> {
@@ -171,7 +176,12 @@ fn system_candidates() -> Vec<PathBuf> {
             }
         }
     }
+    // GUI launches (Finder/Dock) get a minimal PATH, so probe the usual
+    // install locations directly as well.
     for p in [
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/usr/bin/ffmpeg",
         r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
         r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
         r"C:\ffmpeg\bin\ffmpeg.exe",
@@ -302,7 +312,7 @@ fn find_named(dir: &Path, name: &str) -> Option<PathBuf> {
     None
 }
 
-/// Copy an executable together with sibling DLLs/ffprobe from its `bin` folder.
+/// Copy an executable together with sibling ffprobe/ffplay from its `bin` folder.
 fn copy_runtime(from_exe: &Path, to_dir: &Path) -> Result<()> {
     let from_dir = from_exe
         .parent()
@@ -315,17 +325,18 @@ fn copy_runtime(from_exe: &Path, to_dir: &Path) -> Result<()> {
             continue;
         }
         let name = p.file_name().unwrap_or_default().to_string_lossy();
-        let wanted = name.eq_ignore_ascii_case("ffmpeg.exe")
-            || name.eq_ignore_ascii_case("ffprobe.exe")
-            || name.eq_ignore_ascii_case("ffplay.exe")
-            || name.to_ascii_lowercase().ends_with(".dll");
+        let lower = name.to_ascii_lowercase();
+        let wanted = ["ffmpeg", "ffprobe", "ffplay"]
+            .iter()
+            .any(|b| lower == *b || lower == format!("{b}.exe"))
+            || lower.ends_with(".dll");
         if wanted {
             fs::copy(&p, to_dir.join(name.as_ref()))
                 .with_context(|| format!("copy {}", p.display()))?;
         }
     }
-    if !to_dir.join("ffmpeg.exe").exists() {
-        return Err(anyhow!("未找到 ffmpeg.exe"));
+    if !to_dir.join(EXE_NAME).exists() {
+        return Err(anyhow!("未找到 {} 可执行文件", EXE_NAME));
     }
     Ok(())
 }
@@ -406,8 +417,13 @@ pub fn install_from_zip(
             std::io::copy(&mut entry, &mut f)?;
         }
     }
-    let exe =
-        find_named(&staging, "ffmpeg.exe").ok_or_else(|| anyhow!("压缩包中没有 ffmpeg.exe"))?;
+    let exe = find_named(&staging, EXE_NAME).ok_or_else(|| {
+        anyhow!(
+            "压缩包中没有 {}（该平台需要 {} 可执行文件）",
+            EXE_NAME,
+            EXE_NAME
+        )
+    })?;
     let label = zip_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -434,8 +450,13 @@ pub fn install_from_tar_gz(
     let decoder = flate2::read::GzDecoder::new(file);
     let mut archive = tar::Archive::new(decoder);
     archive.unpack(&staging)?;
-    let exe =
-        find_named(&staging, "ffmpeg.exe").ok_or_else(|| anyhow!("压缩包中没有 ffmpeg.exe"))?;
+    let exe = find_named(&staging, EXE_NAME).ok_or_else(|| {
+        anyhow!(
+            "压缩包中没有 {}（该平台需要 {} 可执行文件）",
+            EXE_NAME,
+            EXE_NAME
+        )
+    })?;
     let label = find_named(&staging, "package.json")
         .and_then(|p| fs::read(p).ok())
         .and_then(|d| serde_json::from_slice::<serde_json::Value>(&d).ok())
@@ -571,7 +592,7 @@ pub fn auto_install(tx: Sender<InstallEvent>) {
     let result = if system_ffmpeg().is_some() {
         let _ = tx.send(InstallEvent::Stage("导入系统 FFmpeg".into()));
         import_system().map(|v| v.version)
-    } else {
+    } else if DOWNLOADABLE {
         // The npm mirror is fast in mainland China; fall back to the official
         // latest essentials build if the mirror is unavailable.
         match download_and_install(MIRROR_URL, tx.clone()) {
@@ -583,6 +604,8 @@ pub fn auto_install(tx: Sender<InstallEvent>) {
                 download_and_install(LATEST_URL, tx.clone()).map(|v| v.version)
             }
         }
+    } else {
+        Err(anyhow!("未在系统中找到 FFmpeg，请在设置中导入"))
     };
     let mut m = load_manifest();
     m.auto_attempted = true;

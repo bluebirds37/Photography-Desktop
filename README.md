@@ -29,6 +29,11 @@
 - Rust stable（从源码构建时）
 - FFmpeg 无需预装：首次运行自动导入系统版本；Windows 上还可自动安装
 
+下载预编译包（macOS 11+ arm64）或从源码构建：
+
+- [Releases](https://github.com/bluebirds37/Photography-Desktop/releases/latest)：应用包 `Timelapse-Assistant-*-macos-arm64.zip`、CLI `tlcore`
+- 应用未签名，首次启动请右键 →「打开」；Windows 与 Linux 请按下方步骤从源码构建
+
 从源码构建：
 
 ```bash

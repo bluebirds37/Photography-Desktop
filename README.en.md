@@ -29,6 +29,11 @@ Requirements:
 - Stable Rust (when building from source)
 - FFmpeg is optional; the app imports a system build on first launch, and Windows can install one automatically
 
+Download a prebuilt bundle (macOS 11+ arm64) or build from source:
+
+- [Releases](https://github.com/bluebirds37/Photography-Desktop/releases/latest): app bundle `Timelapse-Assistant-*-macos-arm64.zip` and the `tlcore` CLI
+- The app is unsigned; on first launch use right-click → Open. For Windows and Linux, build from source below
+
 Build from source:
 
 ```bash
